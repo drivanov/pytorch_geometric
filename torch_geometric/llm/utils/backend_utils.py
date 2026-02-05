@@ -80,11 +80,9 @@ def retrieval_via_pcst(
             _, topk_n_indices = torch.topk(n_prizes, topk, largest=True)
 
             n_prizes = torch.zeros_like(n_prizes)
-            n_prizes[topk_n_indices] = torch.arange(
-                topk, 0, -1,
-                device=n_prizes.device,
-                dtype=n_prizes.dtype
-            )
+            n_prizes[topk_n_indices] = torch.arange(topk, 0, -1,
+                                                    device=n_prizes.device,
+                                                    dtype=n_prizes.dtype)
         else:
             n_prizes = torch.zeros(data.num_nodes)
 
@@ -445,4 +443,3 @@ def make_pcst_filter(triples: List[Tuple[str, str,
         return out_graph
 
     return apply_retrieval_via_pcst
-
