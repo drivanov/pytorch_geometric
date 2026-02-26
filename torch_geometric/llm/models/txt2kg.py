@@ -17,7 +17,8 @@ def _safe_worker(args):
         return _multiproc_helper(*args)
 
     except Exception as e:
-        return {"error": str(e), "rank":  args[0]}
+        return {"error": str(e), "rank": args[0]}
+
 
 class TXT2KG():
     """A class to convert text data into a Knowledge Graph (KG) format.
@@ -162,23 +163,22 @@ class TXT2KG():
                 num_procs = min(len(chunks), _get_num_procs())
                 meta_chunk_size = int(len(chunks) / num_procs)
                 in_chunks_per_proc = [
-                    chunks[j * meta_chunk_size: min((j + 1) * meta_chunk_size, len(chunks))]
+                    chunks[j *
+                           meta_chunk_size:min((j + 1) *
+                                               meta_chunk_size, len(chunks))]
                     for j in range(num_procs)
                 ]
 
                 # Run workers via starmap for deterministic ordering
-                worker_args = [
-                    (
-                        rank,
-                        in_chunks_per_proc[rank],
-                        _parse_n_check_triples,
-                        _chunk_to_triples_str_cloud,
-                        self.NVIDIA_API_KEY,
-                        self.NIM_MODEL,
-                        self.ENDPOINT_URL,
-                    )
-                    for rank in range(num_procs)
-                ]
+                worker_args = [(
+                    rank,
+                    in_chunks_per_proc[rank],
+                    _parse_n_check_triples,
+                    _chunk_to_triples_str_cloud,
+                    self.NVIDIA_API_KEY,
+                    self.NIM_MODEL,
+                    self.ENDPOINT_URL,
+                ) for rank in range(num_procs)]
 
                 with mp.get_context("spawn").Pool(num_procs) as pool:
                     results = pool.map(_safe_worker, worker_args)
@@ -288,11 +288,12 @@ def _llm_then_python_parse(chunks, py_fn, llm_fn, **kwargs):
     return relevant_triples
 
 
-def _multiproc_helper(rank, chunks_for_rank, py_fn, llm_fn, NIM_KEY,
-                      NIM_MODEL, ENDPOINT_URL):
+def _multiproc_helper(rank, chunks_for_rank, py_fn, llm_fn, NIM_KEY, NIM_MODEL,
+                      ENDPOINT_URL):
     return _llm_then_python_parse(chunks_for_rank, py_fn, llm_fn,
-                                 GLOBAL_NIM_KEY=NIM_KEY, NIM_MODEL=NIM_MODEL,
-                                 ENDPOINT_URL=ENDPOINT_URL)
+                                  GLOBAL_NIM_KEY=NIM_KEY, NIM_MODEL=NIM_MODEL,
+                                  ENDPOINT_URL=ENDPOINT_URL)
+
 
 def _get_num_procs():
     if hasattr(os, "sched_getaffinity"):
