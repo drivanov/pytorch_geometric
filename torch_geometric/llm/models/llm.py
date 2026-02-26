@@ -102,7 +102,7 @@ class LLM(torch.nn.Module):
             }
             kwargs['low_cpu_mem_usage'] = True
             kwargs['device_map'] = 'auto'
-            kwargs['torch_dtype'] = dtype
+            kwargs['dtype'] = dtype
 
         print(f"Setting up '{model_name}' with configuration: {kwargs}")
         self.tokenizer = AutoTokenizer.from_pretrained(

@@ -12,6 +12,13 @@ GLOBAL_NIM_KEY = ""
 SYSTEM_PROMPT = "Please convert the above text into a list of knowledge triples with the form ('entity', 'relation', 'entity'). Separate each with a new line. Do not output anything else. Try to focus on key triples that form a connected graph."  # noqa
 
 
+def _safe_worker(args):
+    try:
+        return _multiproc_helper(*args)
+
+    except Exception as e:
+        return {"error": str(e), "rank":  args[0]}
+
 class TXT2KG():
     """A class to convert text data into a Knowledge Graph (KG) format.
     Uses NVIDIA NIMs + Prompt engineering by default.
@@ -151,44 +158,44 @@ class TXT2KG():
                     chunks, _parse_n_check_triples,
                     self._chunk_to_triples_str_local)
             else:
-                # Process chunks in parallel using multiple processes
+                # Create deterministic chunk assignment
                 num_procs = min(len(chunks), _get_num_procs())
                 meta_chunk_size = int(len(chunks) / num_procs)
-                in_chunks_per_proc = {
-                    j:
-                    chunks[j *
-                           meta_chunk_size:min((j + 1) *
-                                               meta_chunk_size, len(chunks))]
+                in_chunks_per_proc = [
+                    chunks[j * meta_chunk_size: min((j + 1) * meta_chunk_size, len(chunks))]
                     for j in range(num_procs)
-                }
-                for _retry_j in range(5):
-                    try:
-                        for _retry_i in range(200):
-                            try:
-                                # Spawn multiple processes
-                                # process chunks in parallel
-                                mp.spawn(
-                                    _multiproc_helper,
-                                    args=(in_chunks_per_proc,
-                                          _parse_n_check_triples,
-                                          _chunk_to_triples_str_cloud,
-                                          self.NVIDIA_API_KEY, self.NIM_MODEL,
-                                          self.ENDPOINT_URL), nprocs=num_procs)
-                                break
-                            except:  # noqa
-                                # keep retrying...
-                                # txt2kg is costly -> stoppage is costly
-                                pass
+                ]
 
-                        # Collect the results from each process
-                        self.relevant_triples[key] = []
-                        for rank in range(num_procs):
-                            self.relevant_triples[key] += torch.load(
-                                "/tmp/outs_for_proc_" + str(rank))
-                            os.remove("/tmp/outs_for_proc_" + str(rank))
-                        break
-                    except:  # noqa
-                        pass
+                # Run workers via starmap for deterministic ordering
+                worker_args = [
+                    (
+                        rank,
+                        in_chunks_per_proc[rank],
+                        _parse_n_check_triples,
+                        _chunk_to_triples_str_cloud,
+                        self.NVIDIA_API_KEY,
+                        self.NIM_MODEL,
+                        self.ENDPOINT_URL,
+                    )
+                    for rank in range(num_procs)
+                ]
+
+                with mp.get_context("spawn").Pool(num_procs) as pool:
+                    results = pool.map(_safe_worker, worker_args)
+
+                # Error handling
+                for r in results:
+                    if isinstance(r, dict) and "error" in r:
+                        raise RuntimeError(
+                            f"KG extraction failed in worker {r['rank']}: {r['error']}"
+                        )
+
+                # Deterministic merge
+                flat_triples = [t for sublist in results for t in sublist]
+                flat_triples.sort()
+
+                self.relevant_triples[key] = flat_triples
+
         # Increment the doc_id_counter for the next document
         self.doc_id_counter += 1
 
@@ -281,13 +288,11 @@ def _llm_then_python_parse(chunks, py_fn, llm_fn, **kwargs):
     return relevant_triples
 
 
-def _multiproc_helper(rank, in_chunks_per_proc, py_fn, llm_fn, NIM_KEY,
+def _multiproc_helper(rank, chunks_for_rank, py_fn, llm_fn, NIM_KEY,
                       NIM_MODEL, ENDPOINT_URL):
-    out = _llm_then_python_parse(in_chunks_per_proc[rank], py_fn, llm_fn,
+    return _llm_then_python_parse(chunks_for_rank, py_fn, llm_fn,
                                  GLOBAL_NIM_KEY=NIM_KEY, NIM_MODEL=NIM_MODEL,
                                  ENDPOINT_URL=ENDPOINT_URL)
-    torch.save(out, "/tmp/outs_for_proc_" + str(rank))
-
 
 def _get_num_procs():
     if hasattr(os, "sched_getaffinity"):
