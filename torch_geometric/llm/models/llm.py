@@ -154,9 +154,9 @@ class LLM(torch.nn.Module):
 
     @staticmethod
     def _safe_decode(tokenizer, tokens) -> str:
-        """
-        Robustly decode first token(s) from any HF tokenizer output.
-        Handles:
+        """Decode token IDs from various Hugging Face tokenizer outputs.
+
+        Supports:
             - list[int]
             - list[list[int]]
             - BatchEncoding
