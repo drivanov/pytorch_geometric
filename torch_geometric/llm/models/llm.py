@@ -154,8 +154,7 @@ class LLM(torch.nn.Module):
 
     @staticmethod
     def _safe_decode(tokenizer, tokens) -> str:
-        """
-        Robustly decode first token(s) from any HF tokenizer output.
+        """Robustly decode first token(s) from any HF tokenizer output.
         Handles:
             - list[int]
             - list[list[int]]
