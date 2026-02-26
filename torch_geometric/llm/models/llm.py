@@ -124,7 +124,7 @@ class LLM(torch.nn.Module):
                 dummy_convo,
                 tokenize=True,
             )
-            self.tokenizer.bos_token = self.tokenizer.decode(text[0])
+            self.tokenizer.bos_token = self._safe_decode(self.tokenizer, text)
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token_id = PAD_TOKEN_ID
         if self.tokenizer.padding_side is None:
@@ -151,6 +151,30 @@ class LLM(torch.nn.Module):
                 self.autocast_context = nullcontext()
             else:
                 self.autocast_context = torch.amp.autocast('cuda', dtype=dtype)
+
+    @staticmethod
+    def _safe_decode(tokenizer, tokens) -> str:
+        """
+        Robustly decode first token(s) from any HF tokenizer output.
+        Handles:
+            - list[int]
+            - list[list[int]]
+            - BatchEncoding
+            - tokenizers.Encoding
+        """
+        # BatchEncoding ? extract input_ids
+        if isinstance(tokens, dict):
+            tokens = tokens.get("input_ids", tokens)
+
+        # HuggingFace fast tokenizer Encoding
+        if hasattr(tokens, "ids"):
+            tokens = tokens.ids
+
+        # Nested list case
+        if isinstance(tokens, list) and tokens and isinstance(tokens[0], list):
+            tokens = tokens[0]
+
+        return tokenizer.decode(tokens)
 
     # legacy function - used for Llama 2 style prompting
     def _encode_inputs(
