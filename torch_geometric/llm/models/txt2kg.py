@@ -186,12 +186,8 @@ class TXT2KG():
                 # Error handling
                 for r in results:
                     if isinstance(r, dict) and "error" in r:
-                        raise RuntimeError(
-                                (
-                                    "KG extraction failed in worker "
-                                    f"{r['rank']}: {r['error']}"
-                                )
-                        )
+                        raise RuntimeError("KG extraction failed in worker "
+                                           f"{r['rank']}: {r['error']}")
 
                 # Deterministic merge
                 flat_triples = [t for sublist in results for t in sublist]
