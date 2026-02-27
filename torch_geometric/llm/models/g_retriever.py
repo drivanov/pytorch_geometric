@@ -143,6 +143,11 @@ class GRetriever(torch.nn.Module):
         if self.gnn is not None:
             x = self.encode(x, edge_index, batch, edge_attr)
             x = self.projector(x)
+
+            llm_dtype = next(iter(self.llm_generator.parameters())).dtype
+            if x.dtype != llm_dtype:
+                x = x.to(llm_dtype)
+
             xs = x.split(1, dim=0)
 
             # Handle case where theres more than one embedding for each sample
