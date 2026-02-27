@@ -162,15 +162,12 @@ class LLM(torch.nn.Module):
             - BatchEncoding
             - tokenizers.Encoding
         """
-        # BatchEncoding ? extract input_ids
         if isinstance(tokens, dict):
             tokens = tokens.get("input_ids", tokens)
 
-        # HuggingFace fast tokenizer Encoding
         if hasattr(tokens, "ids"):
             tokens = tokens.ids
 
-        # Nested list case
         if isinstance(tokens, list) and tokens and isinstance(tokens[0], list):
             tokens = tokens[0]
 
