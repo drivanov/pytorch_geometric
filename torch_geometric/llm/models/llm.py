@@ -130,6 +130,7 @@ class LLM(torch.nn.Module):
         if self.tokenizer.padding_side is None:
             self.tokenizer.padding_side = PADDING_SIDE
         self.llm = AutoModelForCausalLM.from_pretrained(model_name, **kwargs)
+        self.llm = self.llm.to(dtype)
         self.word_embedding = self.llm.model.get_input_embeddings()
         if sys_prompt is not None:
             self.sys_prompt = sys_prompt
