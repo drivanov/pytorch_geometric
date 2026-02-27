@@ -187,7 +187,10 @@ class TXT2KG():
                 for r in results:
                     if isinstance(r, dict) and "error" in r:
                         raise RuntimeError(
-                            f"KG extraction failed in worker {r['rank']}: {r['error']}"
+                                (
+                                    "KG extraction failed in worker "
+                                    f"{r['rank']}: {r['error']}"
+                                )
                         )
 
                 # Deterministic merge
